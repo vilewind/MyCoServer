@@ -9,7 +9,7 @@
 #include <iostream>
 
 // #define DEBUF
-// #define TEST
+#define TEST
 
 // static thread_local Coroutine::CoroutineSptr t_mainCoroutine = nullptr;
 // static thread_local Coroutine::CoroutineSptr t_curCoroutine = nullptr;
@@ -235,31 +235,41 @@ CoPool* CoPool::getCoPool()
 #include <thread>
 #include <string>
 
-int g = 1000;
+int g = 10;
 
-void foo(int a)
+void foof(int a)
 {
     for (int i = a; i < g + 5; ++i)
     {
-        std::cout << __func__ << " " << i << std::endl;
+        std::cout << __func__ << " in thread :  " << std::this_thread::get_id() << " value : " << i << std::endl;
         Coroutine::Yield();
     }
 }
 
-/** @TODO 输出参数并未出现变化*/
-int main()
+void foo()
 {
     Coroutine* c1 = Coroutine::getInstanceCoroutine();
     Coroutine* c2 = Coroutine::getInstanceCoroutine();
     
-    c1->setCallback(std::bind(foo, 0));
-    c2->setCallback(std::bind(foo, 5));
+    c1->setCallback(std::bind(foof, 0));
+    c2->setCallback(std::bind(foof, 5));
 
     while(c1->is_execFunc_ && c2->is_execFunc_)
     {
         Coroutine::Resume(c1);
         Coroutine::Resume(c2);
     }
+}
+
+/** @TODO 输出参数并未出现变化*/
+int main()
+{
+    std::thread t1(foo);
+    std::thread t2(foo);
+
+    t1.join();
+    t2.join();
+
     return 0;
 }
 
