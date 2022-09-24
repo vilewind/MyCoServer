@@ -36,7 +36,7 @@ void Epoller::updateChannel( Channel* ch )
         epollCtl( ch, EPOLL_CTL_ADD, "epoll add" );
         ch->setInEpoll(true);
     }
-    std::cout << __func__ << " " << ch->getFd() << std::endl;
+    // std::cout << __func__ << " " << ch->getFd() << std::endl;
 }
 
 void Epoller::removeChannel( Channel* ch )

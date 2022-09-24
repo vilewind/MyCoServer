@@ -21,6 +21,8 @@
 #include <map>
 #include <mutex>
 
+class TimerWheel;
+
 class TcpServer
 {
 public:
@@ -56,6 +58,7 @@ private:
     SocketUtil::Addr* m_addr;					//服务器Addr
     SocketUtil::Socket* m_sock;					//服务器Socket
     Channel* m_acceptor;						//主reactor负责监听并分发任务
+    TimerWheel *m_tw;
 
     IOThreadPool* m_ioPool;		
 

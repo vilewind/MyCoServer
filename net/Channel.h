@@ -42,7 +42,7 @@ public:
 	void setErrorCb( const ChannelCb& cb ) { m_EC = cb; }
 	void setCloseCb( const ChannelCb& cb ) { m_CC = cb; }
 
-	void enableReading();
+	void enableReading( bool ET = true );
 	void disableReading();
 
 	void enableWriting();

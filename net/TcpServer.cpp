@@ -11,6 +11,7 @@
 =============================================================================*/
 
 #include "TcpServer.h"
+#include "TimerWheel.h"
 #include <functional>
 #include <cstring>
 #include <unistd.h>
@@ -33,6 +34,11 @@ TcpServer::TcpServer( EventLoop* loop, const int threadNum, const char* ip, cons
 
     m_acceptor->setReadCb( std::bind( &TcpServer::acceptNewConn, this ) );
     m_acceptor->setErrorCb( std::bind( &TcpServer::dealErroOnConn, this ) );
+
+    TimerWheel::setGlobalEvent( m_loop );
+    m_tw = TimerWheel::getTimerWheel();
+    m_tw->start();
+
 }
 
 TcpServer::~TcpServer()
@@ -49,7 +55,7 @@ TcpServer::~TcpServer()
 /// @brief 在开启tcpserver前，需要设置应用层需要的回调函数，因此不可以直接在构造函数中enablereading
 void TcpServer::start()
 {
-  m_acceptor->enableReading();
+  m_acceptor->enableReading( false  );                                                  //LT
 }
 
 void TcpServer::acceptNewConn()
@@ -69,9 +75,7 @@ void TcpServer::acceptNewConn()
 
     TcpConnectionSP tcsp = std::make_shared<TcpConnection>( loop, fd );
     tcsp->setMsgCb( std::bind( &TcpServer::handleMsg, this, std::placeholders::_1 ) );
-    tcsp->setCloseCb( m_closeCb );
-    tcsp->setErrorCb( m_errorCb );
-    tcsp->setDelConnCb( std::bind( &TcpServer::cleanConn, this, std::placeholders::_1 ) );
+    tcsp->setCloseCb( std::bind( &TcpServer::cleanConn, this, std::placeholders::_1 ) );
     /* add timer */
     {
         std::lock_guard<std::mutex> locker( m_mtx );

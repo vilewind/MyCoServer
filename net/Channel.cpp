@@ -27,9 +27,13 @@ Channel::~Channel()
 	
 }
 
-void Channel::enableReading() 
+void Channel::enableReading( bool ET ) 
 {
-	m_events |= EPOLLIN | EPOLLET;
+	m_events |= EPOLLIN;
+	if ( ET )
+	{
+		m_events |= EPOLLET;
+	}
 	update();
 }
 
@@ -71,7 +75,7 @@ void Channel::remove()
  *  @param EPOLLHUP 文件描述副被挂断
  * */
 void Channel::handleEvent() {
-	std::cout << __func__ << " : " << m_fd << std::endl;
+	// std::cout << __func__ << " : " << m_fd << std::endl;
 	if (m_events & (EPOLLIN | EPOLLPRI) ) {
 		if (m_RC)
 			m_RC();

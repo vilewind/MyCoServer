@@ -19,6 +19,7 @@
 
 class EventLoop;
 class Channel;
+class Timer;
 
 class TcpConnection : public std::enable_shared_from_this<TcpConnection>
 {
@@ -52,8 +53,6 @@ public:
     void setParseFin( bool flag ) { m_parseFin = true; }
     void setMsgCb( const TcpCallback& cb ) { m_msgCb = cb; }
     void setCloseCb( const TcpCallback& cb ) { m_closeCb = cb; }
-    void setErrorCb( const TcpCallback& cb ) { m_errorCb = cb ;}
-    void setDelConnCb( const TcpCallback& cb ) { m_cleanConnCb = cb; }
 
 private:
 /*= func*/
@@ -61,13 +60,17 @@ private:
     void handleWrite();
     void handleError();
     void handleClose();
+
+    void timerFunc();
 /*= data*/
     EventLoop* m_loop { nullptr };
     int m_fd { -1 };
     Channel* m_ch { nullptr };
+    Timer* m_timer { nullptr };
 
     bool m_isDisConn { false };
-    bool m_parseFin { false };
+    bool m_parseFin { false };                      //应用层任务正在执行标志
+    bool m_closing { false };                       //半关闭标志位s
 
     /* 读写缓冲*/
     std::string m_input;
@@ -75,9 +78,7 @@ private:
     std::string m_output;
 
     TcpCallback m_msgCb;
-    TcpCallback m_closeCb;
-    TcpCallback m_errorCb;
-    TcpCallback m_cleanConnCb;
+    TcpCallback m_closeCb;                          //清理连接
 };
 
 #endif

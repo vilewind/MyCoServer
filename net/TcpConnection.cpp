@@ -12,6 +12,7 @@
 #include "TcpConnection.h"
 #include "Channel.h"
 #include "EventLoop.h"
+#include "TimerWheel.h"
 #include <unistd.h>
 #include <cstring>
 #include <cerrno>
@@ -19,6 +20,7 @@
 #include <cassert>
 
 static const int BUFSIZE = 2048;
+static const int TIMEOUT = 8;
 
 int recvn( int fd, std::string& str );
 int sendn( int fd, std::string& str );
@@ -26,11 +28,13 @@ int sendn( int fd, std::string& str );
 TcpConnection::TcpConnection(  EventLoop* loop, int fd )
     : m_loop( loop ),
       m_fd( fd ),
-      m_ch( new Channel( m_loop, m_fd ))
+      m_ch( new Channel( m_loop, m_fd )),
+      m_timer( new Timer( TIMEOUT, std::bind( &TcpConnection::timerFunc, this ) ))
 {
     m_ch->setReadCb( std::bind( &TcpConnection::handleRead, this ) );
     m_ch->setWriteCb( std::bind( &TcpConnection::handleWrite, this ) );
     m_ch->setErrorCb( std::bind( &TcpConnection::handleError, this ) );
+    m_ch->setCloseCb( std::bind( &TcpConnection::handleClose, this ) );
 
     m_input.clear();
     m_output.clear();
@@ -39,11 +43,18 @@ TcpConnection::TcpConnection(  EventLoop* loop, int fd )
 
 TcpConnection::~TcpConnection()
 {
-    m_ch->disableAll();
-    m_ch->remove();
+    assert( m_isDisConn );
     if ( m_ch )
     {
+        m_ch->remove();
         delete m_ch;
+    }
+    ::close( m_fd );
+/* timer不在时间轮中*/
+    if ( m_timer )
+    {
+        // assert( !m_timer->next && !m_timer->prev );
+        delete m_timer;
     }
 }
 
@@ -51,10 +62,10 @@ void TcpConnection::addChannelToLoop()
 {
 /* 进行任务分发时在main eventloop所在线程，因此需要跨线程*/
     // m_ch->enableReading();
+    m_timer->addInToWheel();
     m_loop->runInLoop([=]()
     {
          m_ch->enableReading();
-         std::cout << __func__ << std::endl;
     } );
 }
 
@@ -63,6 +74,7 @@ void TcpConnection::send( const std::string& str )
 #ifdef DEBUG
     std::cout << str << std::endl;
 #endif
+    assert( m_isDisConn == false );
     m_output += str;
     m_loop->runInLoop( std::bind( &TcpConnection::sendInLoop, shared_from_this() ) );
 }
@@ -92,8 +104,9 @@ void TcpConnection::shutdownInLoop()
         return;
     }
 
-    if ( m_ch->getEvents() & (!EPOLLOUT) )
-    {
+    if ( m_ch->getEvents() & EPOLLOUT )
+    {   
+        m_ch->disableWriting();
         SocketUtil::Socket::halfClose( m_fd, SHUT_WR );
     }
 }
@@ -109,18 +122,16 @@ void TcpConnection::forceCloseInLoop()
     {
         return ;
     }
-
-    m_loop->runInLoop( std::bind( m_cleanConnCb, shared_from_this() ) );  //无法自己清理自己，在TcpServer中处理
-    m_ch->disableAll();
-    m_ch->remove();
-    ::close( m_fd );
     m_isDisConn = true;
-
-    m_closeCb( shared_from_this() );                                      //应用层close函数                                          
+    m_ch->disableAll();
+        
+    TcpConnectionSP tcsp( shared_from_this() );
+    m_closeCb( shared_from_this() );                                      
 }
 
 void TcpConnection::handleRead()
 {
+    m_timer->adjustTimer();
     int res = recvn( m_fd, m_input );
     if ( res > 0 )
     {
@@ -138,17 +149,22 @@ void TcpConnection::handleRead()
 
 void TcpConnection::handleWrite()
 {
+    m_timer->adjustTimer();
     int res = sendn( m_fd, m_output );
-    if ( res >= 0 )
+    if ( res > 0 )
     {
         if ( !m_output.empty() )
         {
             m_ch->enableWriting();
         }
+    /* 可能有读入的数据需要处理（解析或数据不完整需要继续读取）*/    
+        else if ( !m_closing )  
+        {
+            shutdown();
+        }
         else 
         {
-            m_ch->disableWriting();
-            shutdown();
+            handleClose();
         }
     }
     else if ( res < 0 )
@@ -163,14 +179,14 @@ void TcpConnection::handleError()
     {
         return;
     }
-    m_loop->runInLoop( std::bind( m_cleanConnCb, shared_from_this() ) );
-    m_ch->disableAll();
-    m_ch->remove();
-    ::close( m_fd );
-    m_errorCb( shared_from_this() );
-     m_isDisConn = true;
+    int err = SocketUtil::Socket::getSocketError( m_fd );
+    std::cerr << "the connetion with fd : " << m_fd << " raise an error : " << err << std::endl;
+    forceClose();
 }
 
+/**
+ * @brief 对端使用close或shutdown时，都会发送FIN；服务器端，保证数据发送完成或解析完成后彻底断开连接
+*/
 void TcpConnection::handleClose()
 {
     if ( m_isDisConn )
@@ -179,21 +195,44 @@ void TcpConnection::handleClose()
     }
 
     m_loop->assertInCurrentThread();
-    
-    m_isDisConn = true;
-    
-    m_ch->disableAll();
 
-/* 读入数据未解析或未解析完成*/
-    if ( !m_input.empty() || !m_parseFin )
+/* 接收到对端FIN后，读入数据未解析或未解析完成*/
+    if ( !m_output.empty() ||  !m_input.empty() || !m_parseFin )
     {
+        m_closing = true;
+        // if ( m_ch->getEvents() & EPOLLOUT )
+        // {
+        //     m_ch->disableWriting();
+        //     shutdown();
+        // }
     /* 可能出现接收到数据后，立即接受到FIN标志，仍然要对这部分数据进行处理*/
         if ( !m_input.empty() )
         {
             m_msgCb( shared_from_this() );
         }
+    } 
+    else
+    {
+        m_isDisConn = true;
+        m_ch->disableAll();
+        m_timer->delFromWheel();
+    /// @note 在断开连接处理connection时，仍在handleevent函数内，增加引用计数是为了防止tcpconnection提前析构，出现sgement fault    
+        TcpConnectionSP tcsp( shared_from_this() );
+        m_closeCb( shared_from_this() );
+    } 
+}
+
+void TcpConnection::timerFunc()
+{
+     if (m_timer->timer_type == Timer::TIMER_ONCE )
+    {
+        // std::cout << __func__ << " " << tcsp->getFd() << std::endl;
+        forceClose();
     }
-    m_closeCb( shared_from_this() );
+    else
+    {
+        m_timer->adjustTimer();
+    }
 }
 
 int recvn( int fd, std::string& str )
