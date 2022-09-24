@@ -25,6 +25,23 @@ static const int TIMEOUT = 8;
 int recvn( int fd, std::string& str );
 int sendn( int fd, std::string& str );
 
+#ifdef TEST
+    TcpConnection::TcpConnection(  EventLoop* loop, int fd )
+    : m_loop( loop ),
+      m_fd( fd ),
+      m_ch( new Channel( m_loop, m_fd )),
+      m_timer( nullptr )
+{
+    m_ch->setReadCb( std::bind( &TcpConnection::handleRead, this ) );
+    m_ch->setWriteCb( std::bind( &TcpConnection::handleWrite, this ) );
+    m_ch->setErrorCb( std::bind( &TcpConnection::handleError, this ) );
+    m_ch->setCloseCb( std::bind( &TcpConnection::handleClose, this ) );
+
+    m_input.clear();
+    m_output.clear();
+    m_inIdx = 0;
+}
+#elif
 TcpConnection::TcpConnection(  EventLoop* loop, int fd )
     : m_loop( loop ),
       m_fd( fd ),
@@ -40,6 +57,7 @@ TcpConnection::TcpConnection(  EventLoop* loop, int fd )
     m_output.clear();
     m_inIdx = 0;
 }
+#endif
 
 TcpConnection::~TcpConnection()
 {
@@ -62,7 +80,10 @@ void TcpConnection::addChannelToLoop()
 {
 /* 进行任务分发时在main eventloop所在线程，因此需要跨线程*/
     // m_ch->enableReading();
-    m_timer->addInToWheel();
+    if (m_timer)
+    {
+        m_timer->addInToWheel();
+    }
     m_loop->runInLoop([=]()
     {
          m_ch->enableReading();
@@ -131,7 +152,10 @@ void TcpConnection::forceCloseInLoop()
 
 void TcpConnection::handleRead()
 {
-    m_timer->adjustTimer();
+    if ( m_timer )
+    {
+          m_timer->adjustTimer();
+    }
     int res = recvn( m_fd, m_input );
     if ( res > 0 )
     {
@@ -149,7 +173,10 @@ void TcpConnection::handleRead()
 
 void TcpConnection::handleWrite()
 {
-    m_timer->adjustTimer();
+     if ( m_timer )
+    {
+          m_timer->adjustTimer();
+    }
     int res = sendn( m_fd, m_output );
     if ( res > 0 )
     {
@@ -224,7 +251,11 @@ void TcpConnection::handleClose()
 
 void TcpConnection::timerFunc()
 {
-     if (m_timer->timer_type == Timer::TIMER_ONCE )
+    if ( m_timer == nullptr )
+    {
+        return;
+    }
+    else if ( m_timer->timer_type == Timer::TIMER_ONCE )
     {
         // std::cout << __func__ << " " << tcsp->getFd() << std::endl;
         forceClose();

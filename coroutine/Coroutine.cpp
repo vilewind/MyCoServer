@@ -229,7 +229,7 @@ CoPool* CoPool::getCoPool()
 }
 
 
-#ifdef TEST
+#ifdef COTEST
 
 #include <iostream>
 #include <thread>

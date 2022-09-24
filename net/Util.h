@@ -12,6 +12,8 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__
 
+#define TEST
+
 #include <iostream>
 #include <arpa/inet.h>
 

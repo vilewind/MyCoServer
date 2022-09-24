@@ -53,6 +53,10 @@ public:
     void setParseFin( bool flag ) { m_parseFin = true; }
     void setMsgCb( const TcpCallback& cb ) { m_msgCb = cb; }
     void setCloseCb( const TcpCallback& cb ) { m_closeCb = cb; }
+#ifdef TEST
+    void addToInput( std::string&& str ) { m_input += str; }
+    void setDisconn( const bool flag ) { m_isDisConn = flag; }
+#endif
 
 private:
 /*= func*/

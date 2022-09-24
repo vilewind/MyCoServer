@@ -40,7 +40,7 @@ IOThreadPool::~IOThreadPool()
 
 void IOThreadPool::thFunc() {
     static thread_local EventLoop el;
-#ifdef TEST
+#ifdef IOTEST
     std::cout << "tid : " << el.getTid() << " eventfd : " << el.getEfd() << std::endl;
 #endif
     m_reactors.emplace_back(&el);
@@ -55,7 +55,7 @@ EventLoop* IOThreadPool::getEventLoop(int fd) {
     return m_reactors[cur];
 }
 
-#ifdef TEST
+#ifdef IOTEST
 
 int main()
 {

@@ -10,6 +10,7 @@
 #
 =============================================================================*/
 #include "EventLoop.h"
+#include "../coroutine/Coroutine.h"
 #include <cassert>
 #include <sys/eventfd.h>
 #include <sys/types.h>
@@ -28,7 +29,8 @@ EventLoop::EventLoop()
     : m_tid ( std::this_thread::get_id() ),
       m_epoller( new Epoller( this )),
       m_efd( getEventFd() ),
-      m_waker( new Channel( this, m_efd ) )
+      m_waker( new Channel( this, m_efd ) ),
+      m_cp( CoPool::getCoPool() )
 {
     if ( t_eventloop != nullptr )
     {
@@ -153,4 +155,9 @@ void EventLoop::execPendingTask()
     }
 
     m_pending = false;
+}
+
+Coroutine* EventLoop::getCoroutineInstanceInCurrentLoop()
+{
+    return m_cp->getCoroutineInstance();
 }

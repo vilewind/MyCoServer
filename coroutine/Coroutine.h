@@ -58,7 +58,7 @@ struct CoPool
     const static int SSIZE = 1024*512;
 
     static CoPool* getCoPool();
-
+    Coroutine* getCoroutineInstance() const { return Coroutine::getInstanceCoroutine(); }
     CoPool();
     ~CoPool();
 };

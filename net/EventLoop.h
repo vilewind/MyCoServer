@@ -21,6 +21,9 @@
 #include <functional>
 #include <mutex>
 
+class CoPool;
+class Coroutine;
+
 class EventLoop : Util::noncopyable
 {
 public:
@@ -59,6 +62,7 @@ public:
 	std::thread::id getTid() const { return m_tid; }
 	int getEfd() const { return m_efd; }
 
+	Coroutine* getCoroutineInstanceInCurrentLoop();
 private:
 /*= func*/
 	/* 跨线程唤醒（读写）*/
@@ -72,6 +76,7 @@ private:
 	Epoller* m_epoller;
 	int m_efd;									//eventfd，用于跨线程唤醒eventloop
 	Channel* m_waker;
+	CoPool* m_cp;
 
 	std::atomic<bool> m_looping { false };
 	std::atomic<bool> m_stop { false };
