@@ -9,7 +9,7 @@
 #include <iostream>
 
 // #define DEBUF
-#define TEST
+// #define TEST
 
 // static thread_local Coroutine::CoroutineSptr t_mainCoroutine = nullptr;
 // static thread_local Coroutine::CoroutineSptr t_curCoroutine = nullptr;
