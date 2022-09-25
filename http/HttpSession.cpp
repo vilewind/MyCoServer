@@ -61,9 +61,9 @@ void HttpSession::operator()()
             requestProcess(ret);
             m_tcsp->getInput().clear();
             m_tcsp->setInIdx(0);
+            m_tcsp->setParseFin( true );
             // m_tcsp->addToOutput( std::move( m_str ) );
             m_tcsp->send( std::move( m_str ) );
-            
             return;
         }
         Coroutine::Yield();
@@ -465,7 +465,7 @@ void HttpSession::readFile( const std::string& filename )
 }
 
 
-#define HSTEST
+// #define HSTEST
 #ifdef HSTEST
 
 int main()

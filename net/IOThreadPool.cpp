@@ -34,7 +34,8 @@ IOThreadPool::~IOThreadPool()
     {   
         if (m_ths[i]->joinable())
             m_ths[i]->join();
-        delete m_ths[i];
+        // delete m_ths[i];
+        Util::Delete<std::thread>(m_ths[i]);
     }
 }
 

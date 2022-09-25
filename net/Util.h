@@ -50,6 +50,16 @@ namespace Util
 		} 
 		return res;
 	}
+
+	template<class T>
+	void Delete( T* t )
+	{
+		if ( t != nullptr )
+		{
+			delete t;
+			t = nullptr;
+		}
+	}
 }
 
 namespace SocketUtil

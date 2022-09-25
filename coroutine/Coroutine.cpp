@@ -1,5 +1,6 @@
 #include "Coroutine.h"
 #include "coctx.h"
+#include "../net/Util.h"
 #include <cstring>
 #include <memory>
 #include <cassert>
@@ -56,20 +57,24 @@ CoPool::~CoPool()
 	{
 		if (cur_coroutine != main_coroutine)
 		{
-			delete cur_coroutine;
-			cur_coroutine = nullptr;
+			// delete cur_coroutine;
+			// cur_coroutine = nullptr;
+            Util::Delete<Coroutine>( cur_coroutine );
 		}
-        delete main_coroutine;
-		main_coroutine = nullptr;
+        // delete main_coroutine;
+		// main_coroutine = nullptr;
+         Util::Delete<Coroutine>( main_coroutine );
 	}
-    if (shared_stack) 
-	{
-        delete shared_stack;
-		shared_stack = nullptr;
-	}
+    // if (shared_stack) 
+	// {
+    //     delete shared_stack;
+	// 	shared_stack = nullptr;
+	// }
+    Util::Delete<char>( shared_stack );
 	for (auto it = coroutine_pool.begin(); it != coroutine_pool.end(); )
     {
-        delete *it++;
+        // delete *it++;
+        Util::Delete<Coroutine>( *it++ );
     }
     // std::cout << __func__ << std::endl;
 }
@@ -90,8 +95,9 @@ Coroutine::Coroutine()
 }
 
 Coroutine::~Coroutine() {
-    if (stack_sp_) 
-        free(stack_sp_);
+    // if (stack_sp_) 
+    //     free(stack_sp_);
+    Util::Delete<char>( stack_sp_ );
     status_ = CO_DEAD;
 }
 
@@ -100,10 +106,14 @@ void Coroutine::stackCopy(char* top) {
     assert(top - &dummy <= t_coPool.SSIZE);
     if (cap_ < top - &dummy) {
         if (stack_sp_ != t_coPool.shared_stack)
-            delete stack_sp_;
+        {
+            // delete stack_sp_;
+            Util::Delete<char>( stack_sp_ );
+        }
         stack_sp_ = nullptr;
         cap_ = top - &dummy;
-        stack_sp_ = reinterpret_cast<char*>(malloc(cap_));
+        // stack_sp_ = reinterpret_cast<char*>(malloc(cap_));
+        stack_sp_ = new char[cap_]();
     }
 
     size_ = top - &dummy;

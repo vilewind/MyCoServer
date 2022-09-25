@@ -30,7 +30,8 @@ int sendn( int fd, std::string& str );
     : m_loop( loop ),
       m_fd( fd ),
       m_ch( new Channel( m_loop, m_fd )),
-      m_timer( nullptr )
+      m_timer( nullptr ),
+      m_co ( m_loop->getCoroutineInstanceInCurrentLoop() )
 {
     m_ch->setReadCb( std::bind( &TcpConnection::handleRead, this ) );
     m_ch->setWriteCb( std::bind( &TcpConnection::handleWrite, this ) );
@@ -46,7 +47,8 @@ TcpConnection::TcpConnection(  EventLoop* loop, int fd )
     : m_loop( loop ),
       m_fd( fd ),
       m_ch( new Channel( m_loop, m_fd )),
-      m_timer( new Timer( TIMEOUT, std::bind( &TcpConnection::timerFunc, this ) ))
+      m_timer( new Timer( TIMEOUT, std::bind( &TcpConnection::timerFunc, this ) )),
+      m_co ( m_loop->getCoroutineInstanceInCurrentLoop() )s
 {
     m_ch->setReadCb( std::bind( &TcpConnection::handleRead, this ) );
     m_ch->setWriteCb( std::bind( &TcpConnection::handleWrite, this ) );
@@ -65,15 +67,18 @@ TcpConnection::~TcpConnection()
     if ( m_ch )
     {
         m_ch->remove();
-        delete m_ch;
+        // delete m_ch;
+        // m_ch = nullptr;
+        Util::Delete<Channel>( m_ch );
     }
     ::close( m_fd );
 /* timer不在时间轮中*/
-    if ( m_timer )
-    {
-        // assert( !m_timer->next && !m_timer->prev );
-        delete m_timer;
-    }
+    // if ( m_timer )
+    // {
+    //     // assert( !m_timer->next && !m_timer->prev );
+    //     delete m_timer;
+    // }
+    Util::Delete<Timer>( m_timer );
 }
 
 void TcpConnection::addChannelToLoop()
@@ -177,6 +182,7 @@ void TcpConnection::handleWrite()
     {
           m_timer->adjustTimer();
     }
+    std::cout << m_output << std::endl;
     int res = sendn( m_fd, m_output );
     if ( res > 0 )
     {

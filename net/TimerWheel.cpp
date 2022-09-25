@@ -92,7 +92,7 @@ TimerWheel::TimerWheel( EventLoop* loop )
 {
     m_timerWheel.resize( SLOTS );
     setTimerFd( m_timerFd, m_interval );
-    std::cout << __func__ << " : " << m_timerFd << std::endl;
+    // std::cout << __func__ << " : " << m_timerFd << std::endl;
     m_ch->setReadCb( std::bind( &TimerWheel::tick, this ) );
 }
 
@@ -106,7 +106,8 @@ TimerWheel::~TimerWheel()
     m_ch->disableAll();
     m_ch->remove();
     ::close( m_timerFd );
-    delete m_ch;
+    // delete m_ch;
+    Util::Delete<Channel>( m_ch );
 }
 
 void TimerWheel::setGlobalEvent( EventLoop* loop )

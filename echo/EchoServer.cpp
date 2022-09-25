@@ -13,6 +13,8 @@
 #include <iostream>
 #include <functional>
 
+const std::string res = "HTTP/1.1 400 Bad Request\r\nContent-Length: 68\r\nConnection: close\r\n\r\nYour request has bad syntax or is inherently impossible to satisfy.";
+
 EchoServer::EchoServer( EventLoop* loop, const int threadNum, const char* ip, const uint16_t port)
     : m_tcpServer( new TcpServer( loop, threadNum, ip, port ) )
 {
@@ -24,7 +26,8 @@ EchoServer::EchoServer( EventLoop* loop, const int threadNum, const char* ip, co
 
 EchoServer::~EchoServer()
 {
-    delete m_tcpServer;
+    // delete m_tcpServer;
+    Util::Delete<TcpServer>( m_tcpServer );
     std::cout << __func__ << std::endl;
 }
 
@@ -35,17 +38,17 @@ void EchoServer::start()
 
 void EchoServer::handleNewConn( const TcpConnectionSP& tcsp )
 {
-    std::cout << __func__ << std::endl;
+    // std::cout << __func__ << std::endl;
 }
 
 void EchoServer::handleClose( const TcpConnectionSP& tcsp )
 {
-    std::cout << __func__ << std::endl;
+    // std::cout << __func__ << std::endl;
 }
 
 void EchoServer::handleError( const TcpConnectionSP& tcsp )
 {
-    std::cout << __func__ << std::endl;
+    // std::cout << __func__ << std::endl;
 }
 
 void EchoServer::handleMsg( const TcpConnectionSP& tcsp )
@@ -54,5 +57,6 @@ void EchoServer::handleMsg( const TcpConnectionSP& tcsp )
     msg.swap( tcsp->getInput() );
     tcsp->setParseFin( true );
 
-    tcsp->send( std::move( msg ) );
+    // tcsp->send( std::move( msg ) );
+    tcsp->send( std::move( res ) );
 }

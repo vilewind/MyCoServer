@@ -52,8 +52,16 @@ EventLoop::~EventLoop()
     assert(!m_looping);
     m_waker->disableAll();
     m_waker->remove();
-    delete m_epoller;
-    delete m_waker;
+    // if ( m_epoller )
+    // {
+    //      delete m_epoller;
+    // }
+    // if ( m_waker )
+    // {
+    //     delete m_waker;
+    // }
+    Util::Delete<Epoller>( m_epoller );
+    Util::Delete<Channel>( m_waker );
     m_stop = true;
     t_eventloop = nullptr;
 }

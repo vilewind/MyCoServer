@@ -45,11 +45,27 @@ TcpServer::~TcpServer()
 {
     m_acceptor->disableAll();
     m_acceptor->remove();
-    delete m_acceptor;
-    delete m_addr;
-    delete m_sock;
-    delete m_acceptor;
-    delete m_ioPool;
+    Util::Delete<Channel>( m_acceptor );
+    Util::Delete<SocketUtil::Addr>( m_addr );
+    Util::Delete<SocketUtil::Socket>( m_sock );
+    Util::Delete<IOThreadPool>( m_ioPool );
+    // if ( m_acceptor )
+    // {
+    //     delete m_acceptor;
+    // }
+    // if ( m_addr )
+    // {
+    //     delete m_addr;
+    // }
+    
+    // if ( m_sock )
+    // {
+    //      delete m_sock;
+    // }
+///@bug double free    
+    // delete m_acceptor;
+    
+    // delete m_ioPool;
 }
 
 /// @brief 在开启tcpserver前，需要设置应用层需要的回调函数，因此不可以直接在构造函数中enablereading
@@ -95,10 +111,8 @@ void TcpServer::handleMsg( TcpConnectionSP tcsp )
 void TcpServer::cleanConn( TcpConnectionSP tcsp )
 {
 
-    {
-         std::lock_guard<std::mutex> locker( m_mtx );
-         m_tcpConns.erase( tcsp->getFd() );
-    }
+    m_tcpConns.erase( tcsp->getFd() );
+    m_closeCb( tcsp );
 }
 
 void TcpServer::dealErroOnConn()

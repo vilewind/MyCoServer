@@ -20,6 +20,7 @@
 class EventLoop;
 class Channel;
 class Timer;
+class Coroutine;
 
 class TcpConnection : public std::enable_shared_from_this<TcpConnection>
 {
@@ -41,6 +42,7 @@ public:
     void forceClose();
     void forceCloseInLoop();
 
+    Coroutine* getMyCo() const { return m_co; }
     bool isDisConn() const { return m_isDisConn; }
     int getFd() { return m_fd; }
     Channel* getChannel() { return m_ch; }
@@ -71,6 +73,7 @@ private:
     int m_fd { -1 };
     Channel* m_ch { nullptr };
     Timer* m_timer { nullptr };
+    Coroutine* m_co;
 
     bool m_isDisConn { false };
     bool m_parseFin { false };                      //应用层任务正在执行标志
