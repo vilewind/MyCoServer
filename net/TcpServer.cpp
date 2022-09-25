@@ -90,6 +90,11 @@ void TcpServer::acceptNewConn()
     }
 
     TcpConnectionSP tcsp = std::make_shared<TcpConnection>( loop, fd );
+    if ( tcsp == nullptr )
+    {
+        std::cout << "new connection establish failed for make share error " << std::endl;
+        return;
+    }
     tcsp->setMsgCb( std::bind( &TcpServer::handleMsg, this, std::placeholders::_1 ) );
     tcsp->setCloseCb( std::bind( &TcpServer::cleanConn, this, std::placeholders::_1 ) );
     /* add timer */
