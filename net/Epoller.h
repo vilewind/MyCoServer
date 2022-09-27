@@ -32,7 +32,7 @@ public:
 
     void removeChannel( Channel* );
 
-    void epollWait( ChannelVec&, int timeout=-1 );
+    void epollWait( ChannelVec&, int timeout=0 );
 
 private:
 /*= func*/

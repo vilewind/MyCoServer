@@ -38,7 +38,7 @@ public:
 
     void operator()();
 
-    Coroutine* getMyCo() const { return m_co; }
+    // Coroutine* getMyCo() const { return m_co; }
 
 private:
 /*= func*/

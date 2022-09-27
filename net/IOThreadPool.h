@@ -6,7 +6,7 @@
 #
 # Filename: IOThreadPool.h
 #
-# Description: 
+# Description: 利用static thread_local 创建IO线程池
 #
 =============================================================================*/
 #ifndef __IOTHREADPOOL_H__
@@ -14,13 +14,15 @@
 
 #include <thread>
 #include <vector>
+#include <memory>
 
 class EventLoop;
 
 class IOThreadPool
 {
 public:
-    // IOThreadPool(int size = std::thread::hardware_concurrency());
+    using TUP = std::unique_ptr<std::thread>;
+
     IOThreadPool(int size = std::thread::hardware_concurrency());
     ~IOThreadPool();
 
@@ -30,7 +32,7 @@ public:
 
     size_t size() const { return m_ths.size();}
 private:
-    std::vector<std::thread*> m_ths;
+    std::vector<TUP> m_ths;
     std::vector<EventLoop*> m_reactors;
 };
 

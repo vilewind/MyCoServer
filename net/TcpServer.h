@@ -19,57 +19,47 @@
 #include "IOThreadPool.h"
 #include <vector>
 #include <map>
-#include <mutex>
+#include <memory>
 
-class TimerWheel;
+
+class TcpConnection;
 
 class TcpServer
 {
 public:
-    using TcpConnectionSP = TcpConnection::TcpConnectionSP;
+     using TcpConnectionSP = TcpConnection::TcpConnectionSP;
     using TcpCallback = TcpConnection::TcpCallback;
 
-     TcpServer( EventLoop*, const int threadNum = 0, 
-        const char* ip = "127.0.0.1", const uint16_t port = 8888);
+    TcpServer( EventLoop*, const int threadNum = std::thread::hardware_concurrency() - 1, const char* ip = "127.0.0.1", const uint16_t port = 8888 );
     ~TcpServer();
 
     void start();
 
-    void setAcceptNewConnCb( const TcpCallback& cb ) { m_acceptCb = cb; }
+    void setInitConn( const TcpCallback& tc ) { m_initConnCb = tc; }
 
-    void setCloseConnCb( const TcpCallback& cb ) { m_closeCb = cb; }
+    void setClearConn( const TcpCallback& tc ) { m_clearConnCb = tc; }
 
-    void setErrorCb( const TcpCallback& cb ) { m_errorCb = cb; }
-
-    void setMsgCb( const TcpCallback& cb ) { m_msgCb = cb; }
-
+    void setMsgCb( const TcpCallback& tc ) { m_msgCb = tc; }
 private:
 /*= func*/
-    void acceptNewConn();
+    void acceptorFunc();
 
-    void handleMsg( TcpConnectionSP );
+    void handleMsg();
 
-    void cleanConn( TcpConnectionSP );
-
-    void dealErroOnConn();
-
+    void handleCleanConn( const TcpConnectionSP&);
+    
 /*= data*/
-    EventLoop* m_loop;							//主reactor
-    SocketUtil::Addr* m_addr;					//服务器Addr
-    SocketUtil::Socket* m_sock;					//服务器Socket
-    Channel* m_acceptor;						//主reactor负责监听并分发任务
-    TimerWheel *m_tw;
+    EventLoop* m_loop;							                //主reactor
+    std::unique_ptr<SocketUtil::Addr> m_addr;					//服务器Addr
+    std::unique_ptr<SocketUtil::Socket> m_sock;					//服务器Socket
+    std::unique_ptr<Channel> m_acceptor;						//主reactor负责监听并分发任务
+    std::unique_ptr<IOThreadPool> m_IOTP;                       //IO线程池
 
-    IOThreadPool* m_ioPool;		
+    std::map<int, TcpConnectionSP> m_conns;
 
-    std::map<int, TcpConnectionSP> m_tcpConns;
-    std::mutex m_mtx { };
-
-    TcpCallback m_acceptCb;
-    TcpCallback m_closeCb;
-    TcpCallback m_errorCb;
+    TcpCallback m_initConnCb;                                   //应用层初始化连接        
+    TcpCallback m_clearConnCb;                                  //应用层连接清理    
     TcpCallback m_msgCb;
-
 };
 
 #endif

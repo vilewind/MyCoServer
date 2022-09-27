@@ -6,7 +6,8 @@
 #
 # Filename: TimerWheel.h
 #
-# Description: 
+# Description: 使用timerfd将定时器转化为epoll上的IO事件，保证one timerwheel per eventloop。
+	定时器的增删以及tick的运行都在对应的IO线程中，也不会存在同步问题。		
 #
 =============================================================================*/
 #ifndef __TIMERWHEEL__
@@ -19,6 +20,7 @@
 #include <vector>
 #include <mutex>
 #include <atomic>
+#include <memory>
 
 class Channel;
 class EventLoop;
@@ -48,9 +50,9 @@ struct Timer
 	Timer( time_t timeout, const TimerCallback&, TimerType tt = TIMER_ONCE );
 	~Timer();	
 
-	void addInToWheel();
+	void addTimer();
 
-	void delFromWheel();
+	void delTimer();
 
 	void adjustTimer( TimerType tt = TIMER_ONCE );
 
@@ -60,46 +62,36 @@ struct Timer
 class TimerWheel
 {
 public:
+	TimerWheel( EventLoop* loop );
     ~TimerWheel();
+
+    void start();
 
     static TimerWheel* getTimerWheel();
 
-	void addTimer( Timer* timer );
+    // static void setEventLoopInCurrentThread( EventLoop* loop );
 
-	void removeTimer( Timer* timer );
+    void addTimerIntoWheel( Timer* timer );
 
-	void adjustTimer( Timer* timer );
+    void delTimerFromWheel( Timer* timer );
 
-	void tick();
+	void adjustTimerInWheel( Timer* timer );
 
-	void start();
-
-	static void setGlobalEvent( EventLoop* );
-    
+    void tick();
 private:
 /*= func*/
-	TimerWheel( EventLoop* );
+    void calculateTimer( Timer* timer );    
+/*= data*/
+    const static int INTERVAL = 1;
+	const static int SLOTS = 60;
 
-    void calculateTimer( Timer* timer );
+    EventLoop* m_loop;
+    int m_timerfd { -1 };						
+    std::unique_ptr<Channel> m_channel;
 
-	void addTimerIntoWheel( Timer* timer );
-
-	void removeTimerFromWheel( Timer* timer );
-
-	void adjustTimerInLoop( Timer* timer );
-
-/*= data*/	
-	EventLoop* m_loop; 
-	int m_timerFd;
-	Channel* m_ch;
-	int m_currentSlot { 0 };
-	time_t m_interval { 1 };
-	std::mutex m_mtx { };
-	std::condition_variable m_cv { };
+    int m_currentSlot { 0 };
 
     std::vector<Timer*> m_timerWheel;
-	const static int INTERVAL = 1;
-	const static int SLOTS = 60;
 };
 
 #endif

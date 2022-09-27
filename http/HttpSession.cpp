@@ -36,36 +36,41 @@ const static std::string SP{" "};
 
 HttpSession::HttpSession( TcpConnectionSP tcsp )
     : m_tcsp( tcsp ),
-      m_inIdx( m_tcsp->getInIdx() ),
-      m_endIdx( m_inIdx ),
-      m_co( m_tcsp->getOwnerLoop()->getCoroutineInstanceInCurrentLoop() )
+      m_co( m_tcsp->getCoroutine() )
 {
-    m_co->setCallback( [=](){
-        this->operator()();
-    });
+    // m_co->setCallback([=]()
+    // {
+    //     this->operator()();
+    // } );
 }
 
 HttpSession::~HttpSession()
 {
-
+    // m_co->clear();
 }
 
 void HttpSession::operator()()
 {
     HTTP_CODE ret = NO_REQUEST;
-    while( ret == NO_REQUEST )
+    while( m_co->is_execFunc_ )
     {
+        m_inIdx = m_tcsp->getInIdx();
         ret = parseProcess();
+    /// @note add request,更新状态    
         if ( ret != NO_REQUEST)
         {
             requestProcess(ret);
             m_tcsp->getInput().clear();
             m_tcsp->setInIdx(0);
             m_tcsp->setParseFin( true );
-            // m_tcsp->addToOutput( std::move( m_str ) );
             m_tcsp->send( std::move( m_str ) );
-            return;
+            ret = NO_REQUEST;
         }
+        else
+        {
+            m_tcsp->setInIdx( m_inIdx );
+        }
+
         Coroutine::Yield();
     }
     // std::cout << ret << std::endl;
@@ -85,8 +90,9 @@ HttpSession::LINE_STATUS HttpSession::parseLine()
     {
         return LINE_OPEN;
     }
+    m_inIdx = m_tcsp->getInIdx();
     std::string str = m_tcsp->getInput();
-// std::cout << __func__ << " : " << str << std::endl;
+
     int idx = str.find( CRLF, m_inIdx );
     if ( idx != str.npos )
     {
@@ -112,12 +118,6 @@ HttpSession::LINE_STATUS HttpSession::parseLine()
  **/ 
 HttpSession::HTTP_CODE HttpSession::parseRequestLine()
 {
-    // if ( m_tcsp.expired() )
-    // {
-    //     return BAD_REQUEST;
-    // }
-
-    // TcpConnectionSP tmp_tcsp = m_tcsp.lock();
     std::string str = m_tcsp->getInput();
 
 /* 获取http方法*/

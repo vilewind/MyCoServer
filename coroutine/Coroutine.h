@@ -28,6 +28,8 @@ public:
     static void Resume(Coroutine*);
     static void Yield();
 
+    void clear();
+
     static bool isMainCoroutine();
 
     static Coroutine* getMainCoroutine();
@@ -64,4 +66,3 @@ struct CoPool
 };
 
 #endif
-

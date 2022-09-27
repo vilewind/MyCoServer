@@ -12,13 +12,11 @@
 #include "IOThreadPool.h"
 #include "EventLoop.h"
 
-// #define TEST
-
 IOThreadPool::IOThreadPool(int size) {
     try
     {
         for (int i = 0; i < size; ++i) {
-            m_ths.emplace_back(new std::thread(std::bind(&IOThreadPool::thFunc, this)));
+            m_ths.emplace_back( std::make_unique<std::thread>( std::bind(&IOThreadPool::thFunc, this ) ) );
         }
     }
     catch(const std::exception& e)
@@ -35,27 +33,40 @@ IOThreadPool::~IOThreadPool()
         if (m_ths[i]->joinable())
             m_ths[i]->join();
         // delete m_ths[i];
-        Util::Delete<std::thread>(m_ths[i]);
     }
 }
 
 void IOThreadPool::thFunc() {
     static thread_local EventLoop el;
+/* 使用定时器*/    
+    el.enableTimer();
+
 #ifdef IOTEST
     std::cout << "tid : " << el.getTid() << " eventfd : " << el.getEfd() << std::endl;
 #endif
+
     m_reactors.emplace_back(&el);
-    el.loop();
+    try
+    {
+       el.loop();
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
 }
 
 EventLoop* IOThreadPool::getEventLoop(int fd) {
-   if ( m_reactors.empty() )
-        return nullptr;
+    if ( m_reactors.empty() )
+    {
+            return nullptr;
+    }
     /* 随机调度*/
     int cur = fd % m_reactors.size();
     return m_reactors[cur];
 }
 
+// #define TEST
 #ifdef IOTEST
 
 int main()

@@ -11,6 +11,7 @@
 =============================================================================*/
 #include "EventLoop.h"
 #include "../coroutine/Coroutine.h"
+#include "TimerWheel.h"
 #include <cassert>
 #include <sys/eventfd.h>
 #include <sys/types.h>
@@ -27,10 +28,11 @@ int getEventFd()
 
 EventLoop::EventLoop() 
     : m_tid ( std::this_thread::get_id() ),
-      m_epoller( new Epoller( this )),
+      m_epoller( std::make_unique<Epoller>( this ) ),
       m_efd( getEventFd() ),
-      m_waker( new Channel( this, m_efd ) ),
-      m_cp( CoPool::getCoPool() )
+      m_waker( std::make_unique<Channel>( this, m_efd ) ),
+      m_cp( CoPool::getCoPool() ),
+      m_tw( nullptr )
 {
     if ( t_eventloop != nullptr )
     {
@@ -52,18 +54,20 @@ EventLoop::~EventLoop()
     assert(!m_looping);
     m_waker->disableAll();
     m_waker->remove();
-    // if ( m_epoller )
-    // {
-    //      delete m_epoller;
-    // }
-    // if ( m_waker )
-    // {
-    //     delete m_waker;
-    // }
-    Util::Delete<Epoller>( m_epoller );
-    Util::Delete<Channel>( m_waker );
+    // Util::Delete<Epoller>( m_epoller );
+    // Util::Delete<Channel>( m_waker );
     m_stop = true;
     t_eventloop = nullptr;
+}
+
+void EventLoop::enableTimer()
+{
+    if ( m_tw == nullptr)
+    {
+        m_tw = std::make_unique<TimerWheel>( this );
+        m_tw->start();
+    }
+    std::cout << __func__ << std::endl;
 }
 
 void EventLoop::loop() {
@@ -125,6 +129,7 @@ void EventLoop::queueInLoop( Task&& task )
         m_tasks.emplace_back( task );
     }
 
+    /// @note 添加  
     if ( !isInCurrentThread() | m_pending )
     {
         wakeup();

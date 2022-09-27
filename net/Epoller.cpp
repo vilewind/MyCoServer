@@ -57,7 +57,7 @@ void Epoller::epollWait( ChannelVec& chs, int timeout ) {
     chs.clear();
     int nfds = Util::ERRIF("epoll wait", 0, ::epoll_wait, m_epfd, &*m_ev.begin(), m_ev.capacity(), timeout);
     if (nfds == 0) {
-        std::cout << "nothing happend" << std::endl;
+        // std::cout << "nothing happend" << std::endl;
     } else {
         for (int i = 0; i < nfds; ++i) {
             epoll_event ee = m_ev[i];

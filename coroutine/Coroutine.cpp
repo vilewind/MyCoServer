@@ -10,7 +10,6 @@
 #include <iostream>
 
 // #define DEBUF
-// #define TEST
 
 // static thread_local Coroutine::CoroutineSptr t_mainCoroutine = nullptr;
 // static thread_local Coroutine::CoroutineSptr t_curCoroutine = nullptr;
@@ -118,6 +117,14 @@ void Coroutine::stackCopy(char* top) {
 
     size_ = top - &dummy;
     memcpy(stack_sp_, &dummy, size_);
+}
+
+void Coroutine::clear()
+{
+    ///@brief 重置相关标志，用以执行其他任务
+    is_execFunc_ = false;
+    status_ = Coroutine::CO_READY;
+    is_used_ = false;
 }
 
 void Coroutine::coroutineMake() {
@@ -239,13 +246,14 @@ CoPool* CoPool::getCoPool()
 }
 
 
+// #define COTEST
 #ifdef COTEST
 
 #include <iostream>
 #include <thread>
 #include <string>
 
-int g = 10;
+int g = 10000;
 
 void foof(int a)
 {

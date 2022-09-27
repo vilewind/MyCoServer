@@ -20,9 +20,8 @@ HttpServer::HttpServer( EventLoop* loop, const int threadNum, const char* ip, co
     : m_tcpServer( new TcpServer( loop, threadNum, ip, port ) )
 {
     std::cout << __func__ << std::endl;
-    m_tcpServer->setAcceptNewConnCb( std::bind( &HttpServer::handleNewConn, this, std::placeholders::_1 ) );
-    m_tcpServer->setCloseConnCb( std::bind( &HttpServer::handleClose, this, std::placeholders::_1 ) );
-    m_tcpServer->setErrorCb( std::bind( &HttpServer::handleError, this, std::placeholders::_1 ) );
+    m_tcpServer->setInitConn( std::bind( &HttpServer::initConn, this, std::placeholders::_1 ) );
+    m_tcpServer->setClearConn( std::bind( &HttpServer::clearConn, this, std::placeholders::_1 ) );
     m_tcpServer->setMsgCb( std::bind( &HttpServer::handleMsg, this, std::placeholders::_1 ) );
     
     m_tcpServer->start();
@@ -35,36 +34,59 @@ HttpServer::~HttpServer()
     std::cout << __func__ << std::endl;
 }
 
-void HttpServer::handleNewConn( const TcpConnectionSP& tcsp )
+void HttpServer::start()
 {
-    Coroutine* co = tcsp->getMyCo();
-    HttpSession* hs = new HttpSession( tcsp );
-    m_hsm[tcsp ] = hs;
-    co->setCallback([=]()
-    {
-       hs->operator()();
-    });
+    m_tcpServer->start();
 }
 
-void HttpServer::handleClose( const TcpConnectionSP& tcsp )
+void HttpServer::initConn( const TcpConnectionSP& tcsp )
+{    
+    HttpSession* hs = new HttpSession( tcsp );
+    m_hsm[tcsp ] = hs;
+    Coroutine* co = tcsp->getCoroutine();
+    co->setCallback( [=]()
+    {
+        hs->operator()();
+    } );
+}
+
+void HttpServer::clearConn( const TcpConnectionSP& tcsp )
 {
     HttpSession* hs = m_hsm[tcsp];
     m_hsm.erase(tcsp);
-    // if (  hs )
-    // {
-    //     delete hs;
-    // } 
     Util::Delete<HttpSession>( hs );  
 }
 
-void HttpServer::handleError( const TcpConnectionSP& tcsp )
+
+void HttpServer::handleMsg( const TcpConnectionSP& tcsp )
 {
-    // std::cout << __func__ << std::endl;
+    // tcsp->setParseFin( false );
+/// @note 新的http请求来临时，重置parse标志    
+    if ( tcsp->isParseFin() == true )
+    {   
+        tcsp->setParseFin( false );
+    }
+    Coroutine::Resume(tcsp->getCoroutine());
 }
 
+#define HTTPTEST
+#ifdef HTTPTEST
 
-void HttpServer::handleMsg( const TCSP& tcsp )
+int main()
 {
-    tcsp->setParseFin( false );
-    Coroutine::Resume(tcsp->getMyCo());
+    EventLoop el;
+    HttpServer hs( &el );
+    hs.start();
+
+    try
+    {
+        el.loop();
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    return 0;   
 }
+
+#endif

@@ -16,76 +16,75 @@
 #include <functional>
 #include <string>
 #include <memory>
+#include <atomic>
 
 class EventLoop;
 class Channel;
 class Timer;
 class Coroutine;
 
-class TcpConnection : public std::enable_shared_from_this<TcpConnection>
+class TcpConnection : Util::noncopyable, public std::enable_shared_from_this<TcpConnection>
 {
 public:
     using TcpConnectionSP = std::shared_ptr<TcpConnection>;
-    using TcpCallback = std::function<void( TcpConnectionSP )>;
+    using TcpCallback = std::function<void( const TcpConnectionSP& )>;
 
     TcpConnection(  EventLoop*, int fd );
     ~TcpConnection();
 
-    void addChannelToLoop();
-
-    void send( const std::string& );
-    void sendInLoop();
-
-    void shutdown();
-    void shutdownInLoop();
-
-    void forceClose();
-    void forceCloseInLoop();
-
-    Coroutine* getMyCo() const { return m_co; }
-    bool isDisConn() const { return m_isDisConn; }
-    int getFd() { return m_fd; }
-    Channel* getChannel() { return m_ch; }
+    EventLoop* getLoop() const { return m_loop; }
     std::string& getInput() { return m_input; }
-    std::string& getOutput() { return m_output; }
-    int& getInIdx() { return m_inIdx; }
-    EventLoop* getOwnerLoop() const { return m_loop; }
+    int getInIdx() const { return m_inIdx; }
+    Coroutine* getCoroutine() const { return m_co; }
+    int getFd() const { return m_sock->getFd(); }
+    bool isParseFin() const { return m_parseFin; }
 
     void setInIdx( int idx = 0 ) { m_inIdx = idx; }
-    void setParseFin( bool flag ) { m_parseFin = true; }
-    void setMsgCb( const TcpCallback& cb ) { m_msgCb = cb; }
-    void setCloseCb( const TcpCallback& cb ) { m_closeCb = cb; }
-#ifdef TEST
-    void addToInput( std::string&& str ) { m_input += str; }
-    void setDisconn( const bool flag ) { m_isDisConn = flag; }
-#endif
+    void setOutput( const std::string& str ) { m_output = str; }
+    void setMsgCb( const TcpCallback& tc ) { m_msgCb = tc; }
+    void setCloseCb( const TcpCallback& tc ) { m_closeCb = tc; }
+    void setParseFin( const bool flag ) { m_parseFin = flag; }
 
+    void send( const std::string& );
+    void shutdown();
+    void forceClose();
+
+    void establishConnection();
+    void destroyConnection();
 private:
 /*= func*/
     void handleRead();
-    void handleWrite();
-    void handleError();
+    
     void handleClose();
+
+    void handleWrite();
+
+    void handleError();
+
+    void sendInLoop( const std::string& );
+
+    void shutdownInLoop();
+
+    void forceCloseInLoop();
 
     void timerFunc();
 /*= data*/
-    EventLoop* m_loop { nullptr };
-    int m_fd { -1 };
-    Channel* m_ch { nullptr };
-    Timer* m_timer { nullptr };
+    enum State : int { DisConnected = 0, Connecting, Connected, DisCOnnecting };
+
+    EventLoop* m_loop;
+    std::unique_ptr<SocketUtil::Socket> m_sock;
+    std::unique_ptr<Channel> m_ch;
+    std::unique_ptr<Timer> m_timer;
     Coroutine* m_co;
+    std::atomic<int> m_state { Connecting };
+    std::atomic<bool> m_parseFin { true };                                          //应用层任务是否完成
 
-    bool m_isDisConn { false };
-    bool m_parseFin { false };                      //应用层任务正在执行标志
-    bool m_closing { false };                       //半关闭标志位s
-
-    /* 读写缓冲*/
     std::string m_input;
     int m_inIdx { 0 };
     std::string m_output;
 
     TcpCallback m_msgCb;
-    TcpCallback m_closeCb;                          //清理连接
+    TcpCallback m_closeCb;
 };
 
 #endif

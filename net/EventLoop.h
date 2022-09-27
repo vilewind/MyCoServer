@@ -6,7 +6,11 @@
 #
 # Filename: EventLoop.h
 #
-# Description: 
+# Description: 1、one eventloop per thread，负责每一个IO线程上的IO事件；
+			   2、使用timerfd实现定时器，因此每个eventloop拥有一个timerwheel，
+				  定时剔除不活跃连接（本项目采取主从reactor模式，因此设置了是否使用timerwheel的函数）
+			   3、此外，eventloop拥有一个协程池，管理协程，并执行eventloop分发的任务，本项目主要为使用状态机解析http协议），
+			      协程池初始协程数量为0，主reactor只有一个thread local copool对象，协程对其无影响
 #
 =============================================================================*/
 #ifndef __EVENTLOOP_H__
@@ -23,6 +27,7 @@
 
 class CoPool;
 class Coroutine;
+class TimerWheel;
 
 class EventLoop : Util::noncopyable
 {
@@ -63,6 +68,9 @@ public:
 	int getEfd() const { return m_efd; }
 
 	Coroutine* getCoroutineInstanceInCurrentLoop();
+
+//// @brief 启用timerwheel	
+	void enableTimer();
 private:
 /*= func*/
 	/* 跨线程唤醒（读写）*/
@@ -73,10 +81,11 @@ private:
 
 /*= data*/
 	std::thread::id m_tid;
-	Epoller* m_epoller;
+	std::unique_ptr<Epoller> m_epoller;
 	int m_efd;									//eventfd，用于跨线程唤醒eventloop
-	Channel* m_waker;
+	std::unique_ptr<Channel> m_waker;
 	CoPool* m_cp;
+	std::unique_ptr<TimerWheel> m_tw;
 
 	std::atomic<bool> m_looping { false };
 	std::atomic<bool> m_stop { false };

@@ -13,9 +13,9 @@
 #include "Util.h"
 #include <fcntl.h>
 #include <unistd.h>
-#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <cstring>
 
 using namespace Util;
 using namespace SocketUtil;
@@ -107,5 +107,104 @@ int Socket::getSocketError( int fd )
     else
     {
         return opt;
+    }
+}
+
+
+const static int BUFSIZE = 1024;
+int Socket::recvn( int fd, std::string&& str )
+{
+    ssize_t n = 0;
+    size_t sum = 0;
+    char buf[BUFSIZE];
+
+    while( 1 )
+    {
+        ::memset(&buf, 0, sizeof buf );
+        n = ::read( fd, buf, BUFSIZE );
+
+        if ( n < 0 )
+        {
+        /* 读缓冲区为空，非阻塞返回*/    
+            if ( errno == EAGAIN || errno == EWOULDBLOCK )
+            {
+                return sum;
+            }
+            else if ( errno == EINTR )
+            {
+                continue;
+            }
+            else 
+            {
+                std::cerr << __func__ << " with errno : " <<  errno << std::endl;
+                return -1;
+            }
+        } 
+        else if ( n == 0)
+        {
+            return 0;
+        }
+        else 
+        {
+            str.append( buf );
+            sum += n;
+        /* 若读到的数据规模不足BUFSIZE，说明读缓冲区暂时为空，立即返回*/    
+            if ( n < BUFSIZE )
+            {
+                return sum;
+            }
+        }
+    }
+}
+
+int Socket::sendn( int fd , std::string&& str )
+{
+    ssize_t n = 0;
+    size_t sum = 0;
+    size_t len = str.size();
+    char* buf = const_cast<char*>( str.c_str() );
+
+    while( 1 )
+    {
+        n = ::write( fd, buf + sum, len - sum );
+        if ( n < 0 )
+        {
+            /* ignore SIGPIPE*/
+            if ( errno == EAGAIN || errno == EWOULDBLOCK )
+            {
+                if ( sum == len )
+                {
+                    str.clear();
+                    buf = nullptr;
+                }
+                else
+                {
+                    str = str.substr( sum, len - sum + 1);
+                }
+                return sum;
+            }
+            else if ( errno == EINTR )
+            {
+                continue;
+            }
+            else 
+            {
+                std::cerr << __func__ << " with errno : " <<  errno << std::endl;
+                return -1; 
+            }
+        }
+        else if ( n > 0 )
+        {
+            sum += n;
+            if ( sum == len )
+            {
+                str.clear();
+                buf = nullptr;
+                return sum;
+            }
+        }
+        else {
+            return 0;
+        }
     }
 }

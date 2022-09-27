@@ -12,7 +12,7 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__
 
-#define TEST
+// #define TEST
 
 #include <iostream>
 #include <arpa/inet.h>
@@ -112,6 +112,10 @@ namespace SocketUtil
 		static void setNonblock(int fd);
 
 		static int getSocketError( int fd );
+
+		static int recvn( int fd, std::string&& str );
+		
+		static int sendn( int fd, std::string&& str );
 	private:	
 		const int m_fd;
 	};

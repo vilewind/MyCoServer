@@ -18,9 +18,9 @@ const std::string res = "HTTP/1.1 400 Bad Request\r\nContent-Length: 68\r\nConne
 EchoServer::EchoServer( EventLoop* loop, const int threadNum, const char* ip, const uint16_t port)
     : m_tcpServer( new TcpServer( loop, threadNum, ip, port ) )
 {
-    m_tcpServer->setAcceptNewConnCb( std::bind( &EchoServer::handleNewConn, this, std::placeholders::_1 ) );
-    m_tcpServer->setCloseConnCb( std::bind( &EchoServer::handleClose, this, std::placeholders::_1 ) );
-    m_tcpServer->setErrorCb( std::bind( &EchoServer::handleError, this, std::placeholders::_1 ) );
+    // m_tcpServer->setAcceptNewConnCb( std::bind( &EchoServer::handleNewConn, this, std::placeholders::_1 ) );
+    // m_tcpServer->setCloseConnCb( std::bind( &EchoServer::handleClose, this, std::placeholders::_1 ) );
+    // m_tcpServer->setErrorCb( std::bind( &EchoServer::handleError, this, std::placeholders::_1 ) );
     m_tcpServer->setMsgCb( std::bind( &EchoServer::handleMsg, this, std::placeholders::_1 ) );
 }
 
@@ -58,5 +58,26 @@ void EchoServer::handleMsg( const TcpConnectionSP& tcsp )
     tcsp->setParseFin( true );
 
     // tcsp->send( std::move( msg ) );
-    tcsp->send( std::move( res ) );
+    tcsp->send( std::move( msg ) );
 }
+
+#define ECHOTEST
+#ifdef ECHOTEST
+
+int main()
+{
+    EventLoop el;
+    EchoServer es( &el );
+    es.start();
+
+    try
+    {
+        el.loop();
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    return 0;   
+}
+#endif

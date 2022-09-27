@@ -26,17 +26,15 @@ using HttpSessionMap = std::map<TcpConnectionSP, HttpSession*>;
 class HttpServer
 {
 public:
-     using TCSP = TcpConnection::TcpConnectionSP;
-     using HSP = HttpSession*;
-    
-    HttpServer( EventLoop*, const int threadNum = 0, const char* ip = "127.0.0.1", const uint16_t port = 8888 );
+    HttpServer( EventLoop*, const int threadNum = 2, const char* ip = "127.0.0.1", const uint16_t port = 8888 );
     ~HttpServer();
 
+    void start();
+    
 private:
 /*= func*/
-    void handleNewConn( const TcpConnectionSP& );
-    void handleClose( const TcpConnectionSP& );
-    void handleError(const TcpConnectionSP& );
+    void initConn( const TcpConnectionSP& );
+    void clearConn( const TcpConnectionSP& );
     void handleMsg( const TcpConnectionSP& );
 /*= data*/
     TcpServer* m_tcpServer;

@@ -21,7 +21,7 @@ class EchoServer
 public:
      using TcpConnectionSP = TcpConnection::TcpConnectionSP;
     
-    EchoServer( EventLoop*, const int threadNum = 0, const char* ip = "127.0.0.1", const uint16_t port = 8888);
+    EchoServer( EventLoop*, const int threadNum = 2, const char* ip = "127.0.0.1", const uint16_t port = 8888);
     ~EchoServer();
 
     void start();
