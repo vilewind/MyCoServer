@@ -11,7 +11,7 @@ MyCoServer
 
 本项目采取主从reactor模式，使用固定数量的IO线程池，保证“one eventloop per thread”。主reactor负责监听和分发——监听连接并分配给随机选取的subreactor；从reactor负责执行IO事件（包括定时事件）。并发模型的细节参考了muduo库，比如基于eventfd实现runInLoop和queueInLoop的跨线程执行用户回调；使用timerfd实现定时器，避免使用sleep，造成资源浪费。
 
-<img src="/Users/vilewind/Library/Application Support/typora-user-images/截屏2022-09-23 20.47.42.png" alt="截屏2022-09-23 20.47.42" style="zoom:30%;" />
+<img src="https://github.com/vilewind/MyCoServer/blob/main/IMG/1.png" />
 
 ## 协程设计
 
@@ -21,7 +21,7 @@ MyCoServer
 
 本项目参考了《linux高性能服务器》第15章，使用状态机解析HTTP协议。当服务器端读到客户的http请求，则唤醒http解析协程，根据主状态机的情况，确定继续读（NO_RQUEST）或响应/写（BAD_REUQEST、GET_REQUEST等），流程图如下：
 
-<img src="IMG/2.png" style="zoom:50%;" />
+<img src="https://github.com/vilewind/MyCoServer/blob/main/IMG/2.png" style="zoom:50%;" />
 
 
 
@@ -43,8 +43,8 @@ MyCoServer
 # Perfomance Test
 
 - 本项目采取HTTP_LOAD进行测试，服务器IO线程数为2，并发客户进程数为1000时，10秒内的QPS为1141.68。具体结果如下：
-
-  ![截屏2022-09-27 22.06.18](/Users/vilewind/Desktop/截屏2022-09-27 22.06.18.png) 
+<img src="https://github.com/vilewind/MyCoServer/blob/main/IMG/3.png" style="zoom:50%;" />
+   
 
 # Others
 
